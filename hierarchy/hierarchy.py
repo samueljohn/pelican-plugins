@@ -12,7 +12,7 @@ import functools
 
 from pelican import signals, contents, generators, utils
 
-__version__ = (0, 0, 9)
+__version__ = (0, 1, 0)
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
                      'doc', 'docx', 'xls',
                      'pdf',
-                     'zip', 'tar', 'gz')
+                     'zip', 'tar', 'gz',
+                     'js')
 
 
 def ascii_tree(tree, prefix=[], last_prefix="", print_item=repr):
@@ -248,7 +249,7 @@ class HiPagesGenerator(generators.PagesGenerator):
         self._update_context(('pages', ))
         self.context['PAGES'] = self.pages
         self.context['PAGES_TREE'] = root
-        # logger.info(ascii_tree(root, print_item=lambda x: x.slug))
+        logger.info(ascii_tree(root, print_item=lambda x: x.slug))
 
         signals.page_generator_finalized.send(self)
 
