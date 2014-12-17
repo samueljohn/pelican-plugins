@@ -50,8 +50,6 @@ def ascii_tree(tree, prefix=[], last_prefix="", print_item=repr):
     s = "".join(prefix[:-1]) + last_prefix + print_item(tree) + "\n"
     try:
         last_i = len(tree) - 1
-        # if tree is tree.sub_pages[0]:
-            # return s  # avoid infinit recursion
         for i, item in enumerate(tree):
             if i == last_i:
                 s += ascii_tree(item,
