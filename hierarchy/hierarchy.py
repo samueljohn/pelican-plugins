@@ -38,7 +38,6 @@ __version__ = (0, 1, 0)
 logger = logging.getLogger(__name__)
 
 
-# todo: allow more extensions to be defined in the settings
 STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
                      'doc', 'docx', 'xls',
                      'pdf',
@@ -75,10 +74,14 @@ class CopyStaticAssetsGenerator(generators.Generator):
         self._generate_output_for(writer, 'PAGE')
 
     def _generate_output_for(self, writer, kind):
+        extensions = STATIC_EXTENSIONS
+        if STATIC_EXTENSIONS in self.settings:
+            extensions.extend(self.settings['STATIC_EXTENSIONS'])
+
         for f in self.get_files(
                 self.settings[kind + '_PATHS'],
                 exclude=self.settings[kind + '_EXCLUDES'],
-                extensions=STATIC_EXTENSIONS):
+                extensions=extensions):
             # Remove PAGE_PATHS for output
             #dest = copy(f)
             #if kind == 'PAGE':
