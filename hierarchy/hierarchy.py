@@ -82,15 +82,6 @@ class CopyStaticAssetsGenerator(generators.Generator):
                 self.settings[kind + '_PATHS'],
                 exclude=self.settings[kind + '_EXCLUDES'],
                 extensions=extensions):
-            # Remove PAGE_PATHS for output
-            #dest = copy(f)
-            #if kind == 'PAGE':
-            #    print("removing ", f)
-            #    dest = os.path.join(*f.split(os.path.sep)[1:])
-            #print("f", f)
-            #print("self.path", self.path)
-            #print("output_path", self.output_path)
-            #print("dest", os.path.dirname(dest))
             utils.copy(os.path.join(self.path, f),
                        os.path.join(self.output_path, f))
 
