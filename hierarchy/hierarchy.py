@@ -33,7 +33,7 @@ import functools
 
 from pelican import signals, contents, generators, utils
 
-__version__ = (0, 1, 0)
+__version__ = (0, 1, 1)
 
 logger = logging.getLogger(__name__)
 
