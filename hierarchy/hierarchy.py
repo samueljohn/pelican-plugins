@@ -37,6 +37,10 @@ __version__ = (0, 1, 1)
 
 logger = logging.getLogger(__name__)
 
+# Tweak the Pelican logger to also show the `name` of the logger.
+logger = logging.getLogger("hierarchy")
+logger.parent.handlers[-1].formatter._style._fmt = \
+    '%(customlevelname)s %(name)s - %(message)s'
 
 STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
                      'doc', 'docx', 'xls',
