@@ -106,7 +106,7 @@ class CopyStaticAssetsGenerator(generators.Generator):
 # overwrite with Title if a page exists
 
 # If there is dir in PAGE_DIR, then create an output dir
-# and add an index.hmtl (unless there is an index.md)
+# and add an index.html (unless there is an index.md)
 
 # Todo: Submit a PR to Pelican to allow cleanly replaceing PagesGenerator.
 #       This is currently not possible, because in `__init__.py` in the method
