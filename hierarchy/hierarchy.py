@@ -53,7 +53,14 @@ HIPAGE_URL = HIPAGE_SAVE_AS = "pages/{hierarchy}.html"
 HIPAGE_LANG_URL = HIPAGE_LANG_SAVE_AS = "pages/{hierarchy}-{lang}.html"
 
 
-def ascii_tree(tree, prefix=[], last_prefix="", print_item=repr):
+
+def ascii_tree(tree, print_item=repr, prefix=[], last_prefix=""):
+    """
+    Print a nice ASCII tree of the iterable `tree`.
+
+    To print each item, the `print_item` callable is used and has to
+    return a `str`.
+    """
     s = "".join(prefix[:-1]) + last_prefix + print_item(tree) + "\n"
     try:
         last_i = len(tree) - 1
