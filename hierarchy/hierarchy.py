@@ -27,11 +27,10 @@ SOFTWARE.
 
 import os
 import logging
-from copy import copy
 from collections import OrderedDict
 import functools
 
-from pelican import signals, contents, generators, utils
+from pelican import signals, contents, generators, utils, readers
 
 __version__ = (0, 1, 1)
 
@@ -102,7 +101,6 @@ class CopyStaticAssetsGenerator(generators.Generator):
 
 # todo: Add the filenames of the assests to the url list in context
 #       so that _update_content can fix relative URLs
-# look for dirs and extract XXX_ in front for ordering
 # overwrite with Title if a page exists
 
 # If there is dir in PAGE_DIR, then create an output dir
@@ -120,29 +118,45 @@ class HiPage(contents.Page):
     HiPage inherits from `Page` and implements a hierarchical organization.
 
     There are the properties `parent` and `level` to access the hierarchy.
-    A HiPage page re-uses the page template.
+    A HiPage page re-uses the page template of Pelican. Because the `slug` is
+    used by Pelican as a kind of unique id for pages (e.g. for finding
+    translations), we set the slug to the relative path
 
-    A HiPage is iterable to go over all (direct) sub pages. It also supports
-    the `__contains__` method based on the slug, so that `if "foobar" in page`
-    works by checking if a page with slug "foobar" is among the sub_pages of
-    this page.
+    A HiPage is iterable to go over all (direct) `sub_pages`. It also supports
+    the `__contains__` method based on the `name`, so that
+        if "foobar" in page
+    works by checking if a page with `name` "foobar" is among the sub_pages
+    of this page.
     Under the hood, the hierarchy is implemented as an OrderedDict
-    in the property `sub_pages`, where the slugs are the keys to the mapping.
+    in the property `sub_pages`, where the `name`s are the keys to the mapping.
     If you need to add sub pages, you'll have to work directly with the
     `sub_pages` OrderedDict.
     """
 
     def __init__(self, content, metadata=None, settings=None,
-                 source_path=None, context=None, slug=None, title=None,
-                 parent=None, **kws):
+                 source_path=None, context=None, slug=None, name=None,
+                 title=None, parent=None, **kws):
         self.parent = parent
-        title = title or slug  # fall back to use slug for title
+        self.sub_pages = OrderedDict()
 
         if source_path is None:
-            assert slug is not None,\
-                "If no `source_path` given, a slug is needed."
+            assert name is not None,\
+                "If no `source_path` given, a name is needed."
             assert title is not None,\
                 "If no `source_path` given, a title is needed."
+            assert slug is not None,\
+                "If no `source_path` given, a slug is needed."
+            logger.debug("New HiPage object created: "
+                         "(name={0}, title={1}, slug={2})".
+                         format(name, title, slug))
+        else:
+            m = readers.parse_path_metadata(
+                source_path,
+                settings={'FILENAME_METADATA': FILENAME_METADATA})
+            self.name = utils.slugify(m['title'])
+            self.title = m['title']
+            logger.debug("New HiPage object created: source_path={0}".
+                         format(source_path))
 
         super(HiPage, self).__init__(content,
                                      metadata=metadata,
@@ -150,13 +164,40 @@ class HiPage(contents.Page):
                                      source_path=source_path,
                                      context=context,
                                      **kws)
-        # Only set slug/title if they were explicitly provided as keyword args,
-        # otherwise let the `Page` constructor do its work.
+
+        # If title, slug or name are given as keywords, then, we overwrite
+        # what the super constructor set.
+        if name is not None:
+            self.name = utils.slugify(name)
+            logger.debug("    name='{0}' was explicitly given.".
+                         format(name))
+
         if slug is not None:
-            self.slug = slug
+            # don't slugify here because we need it to be ../index.html later
+            self._slug = slug
+            logger.debug("    slug='{0}' was explicitly given.".
+                         format(slug))
+        else:
+            self._slug = None
+
         if title is not None:
             self.title = title
-        self.sub_pages = OrderedDict()
+            logger.debug("    title='{0}' was explicitly given.".
+                         format(title))
+
+    @property
+    def slug(self):
+        if self._slug is not None:
+            return self._slug
+        else:
+            s = [p.name for p in self.hierarchy if p.parent] + [self.name]
+            logger.debug("slug Computed: {0}.".
+                         format(">".join(s)))
+            return ">".join(s)
+
+    @slug.setter
+    def slug(self, value):
+        self._slug = value
 
     def __iter__(self):
         # The "iter" around is necessary because Jinja cannot yet handle
@@ -165,7 +206,7 @@ class HiPage(contents.Page):
 
     def __contains__(self, item):
         if isinstance(item, contents.Page):
-            item = item.slug
+            item = item.name
         return True if item in self.sub_pages else False
 
     def __getitem__(self, key):
@@ -199,40 +240,18 @@ class HiPage(contents.Page):
             bc.append((p.url, p.title))
         return reversed(bc)
 
-    def get_url_setting(self, key, separator="/"):
+    @property
+    def url_format(self):
         """
-        Helper building the path used for the properties `url` and `save_as`.
-
-        `key` is either "usr" or "save_as".
-
-        The get_url_setting method of Page usually returns something like
-        "pages/spam.html" as it is defined by Pelican and can be configured
-        by setting PAGE_LANG_URL etc.. We split this at the `separator`, so
-        we can insert our hierachical layout, e.g.
-        "pages/projects/fun/spam.thml"
+        Add the `hierarchy` entry to the metadata for url and save_as
+        expansion.
         """
-        # The root HiPage is not wanted here, and we ignore it by checking if
-        # it has a parent.
-        url = []
-        slugs = reversed(list(p.slug for p in self.hierarchy if p.parent))
-        orig = contents.Page.get_url_setting(self, key).split(separator)
-        url.extend(orig[:-1])
-        url.extend(slugs)
-        url.extend(orig[-1:])
-        return separator.join(url)
-
-    # We have to override these properties, so that we can inject
-    # our hierarchical layout.
-    url = property(functools.partial(get_url_setting, key='url'))
-    save_as = property(functools.partial(get_url_setting, key='save_as',
-                                         separator=os.sep))
-
-    # Override this method to avoid having the user to tell to use HIPAGE_...
-    # settings instead of the default PAGE_... settings.
-    def _expand_settings(self, key):
-        """Expant to full qualified settings, but prefixed with "PAGE_"."""
-        fq_key = ('%s_%s' % ("Page", key)).upper()
-        return self.settings[fq_key].format(**self.url_format)
+        metadata = getattr(super(HiPage, self), "url_format")
+        hi = "/".join(list(reversed([p.name for p in self.hierarchy
+                                     if p.parent])) +
+                      [self.name])
+        metadata.update({'hierarchy': hi, 'name': self.name})
+        return metadata
 
     def __hash__(self):
         """Ignoring the self.sub_pages and just make HiPage hashable."""
@@ -242,7 +261,7 @@ class HiPage(contents.Page):
         return "<{cl} {url}>".format(cl=self.__class__.__name__, url=self.url)
 
     def print_tree(self):
-        print(ascii_tree(self, print_item=lambda x: x.slug))
+        print(ascii_tree(self, print_item=lambda x: x.title))
 
 
 class HiPagesGenerator(generators.PagesGenerator):
@@ -260,56 +279,65 @@ class HiPagesGenerator(generators.PagesGenerator):
         """
         Overwrites `PagesGenerator.generate_context` and builds up `HiPage`es.
         """
-        root = HiPage("", slug='../index', title='Home', parent=None)
+        root = HiPage("", slug='../index', name="index", title='Home',
+                      parent=None, settings=self.settings)
         all_pages = []
         hidden_pages = []
 
-        path = os.path.join(self.path, self.settings['PAGE_PATHS'][0])
-        all_pages, hidden_pages = self._scan_dir_r(
-            path,
-            exclude=self.settings['PAGE_EXCLUDES'],
-            parent=root)
+        for page_path in self.settings['PAGE_PATHS']:
+            ps, hs = self._scan_dir_r(
+                os.path.join(self.path, page_path),
+                exclude=self.settings['PAGE_EXCLUDES'],
+                parent=root)
+            all_pages.extend(ps)
+            hidden_pages.extend(hs)
 
         self.pages, self.translations = utils.process_translations(all_pages)
         self.hidden_pages, self.hidden_translations = (
             utils.process_translations(hidden_pages))
+        self.PAGES_TREE = root
 
-        self._update_context(('pages', ))
-        self.context['PAGES'] = self.pages
-        self.context['PAGES_TREE'] = root
-        logger.info(ascii_tree(root, print_item=lambda x: x.slug))
+        self._update_context(['pages', 'hidden_pages', 'PAGES_TREE'])
+        # self.context['PAGES'] = self.pages
+        # self.context['PAGES_TREE'] = root
+        logger.info("\n" + ascii_tree(self.context['PAGES_TREE'],
+                                      print_item=lambda x: x.title))
 
         signals.page_generator_finalized.send(self)
 
-    def _scan_dir_r(self, path, exclude=None, parent=None, extensions=None):
+    def _scan_dir_r(self, base_path, rel_path="",
+                    exclude=None, parent=None, extensions=None):
         """
-        Recursively scan `path` for source files to convert to `HiPages`.
+        Recursively scan `base_path/rel_path` for source files.
 
         Symlinks are followed.
 
-        `path`: Absolute directory path (`str`) to scan through.
+        `base_path`: Absolute directory path (`str`).
+        `rel_path`: The relative dir below `base_path` to start scanning.
         `exclude`: Directory names to exclude.
         `parent`: The `HiPage` that is used as the parent for items in `path`.
         """
         pages = []
         hidden_pages = []
-        page_dir = os.path.join(self.path, self.settings['PAGE_PATHS'][0]) #XXX the [0] part is a hack!
+        path = os.path.join(base_path, rel_path)
 
         for item in sorted(os.listdir(path)):
-            # Get the path to the `item` relative to the "PAGE_PATHS[0]" which
-            # is "pages" in the default settings.
-            rel_path = os.path.join(os.path.relpath(path, page_dir), item)
+            # Get the path to the `item` relative to the base_path
+            abs_item = os.path.join(path, item)
+            rel_item = os.path.join(os.path.relpath(path, base_path), item)
+            logger.debug("Scanning {}".format(rel_item))
 
-            if os.path.isfile(os.path.join(path, item)):
+            if os.path.isfile(abs_item):
                 # Using the include logic from parent class:
-                if not self._include_path(rel_path, extensions):
-                    logger.debug("Skipping {}".format(rel_path))
+                if not self._include_path(rel_item, extensions):
+                    logger.debug("... skipping {} (unknown extension)".
+                                 format(rel_item))
                     continue
 
                 try:
                     page = self.readers.read_file(
-                        base_path=page_dir,
-                        path=rel_path,
+                        base_path=base_path,
+                        path=rel_item,
                         content_class=HiPage,
                         context=self.context,
                         preread_signal=signals.page_generator_preread,
@@ -317,24 +345,27 @@ class HiPagesGenerator(generators.PagesGenerator):
                         context_signal=signals.page_generator_context,
                         context_sender=self)
                 except Exception as e:
-                    logger.warning('Could not process {}\n{}'
-                                   .format(rel_path, e))
+                    logger.warning('could not process {}\n{}'
+                                   .format(rel_item, e))
                     continue
 
-                if not contents.is_valid_content(page, rel_path):
+                if not contents.is_valid_content(page, rel_item):
+                    logger.warn('invalid content for ' + rel_item)
                     continue
 
                 self.add_source_path(page)
 
-                # XXX
-                if page.slug in parent.sub_pages.keys():
+                if page.name in parent.sub_pages.keys():
                     # Instead of the virtual page use the parents's one
-                    print("replace a virtual HiPage by this " + repr(page))
-                    for sub in parent.sub_pages[page.slug]:
-                        page.sub_pages[sub.slug] = sub
-                    pages.remove(parent.sub_pages[page.slug])
-                    del parent.sub_pages[page.slug]
-                    print("so now parent.sub_pages is " + repr(parent.sub_pages))
+                    logger.debug("replace a virtual HiPage by this " +
+                                 repr(page))
+                    for sub in parent.sub_pages[page.name]:
+                        page.sub_pages[sub.name] = sub
+                        sub.parent = page
+                    pages.remove(parent.sub_pages[page.name])
+                    del parent.sub_pages[page.name]
+                    logger.debug("so now parent.sub_pages is " +
+                                 repr(parent.sub_pages))
 
                 if page.status == "published":
                     pages.append(page)
@@ -343,57 +374,68 @@ class HiPagesGenerator(generators.PagesGenerator):
                         # Always adding the page if it is in the default lang,
                         # possibly overwriting an older assignment from a
                         # translated page that happend to be processed before:
-                        parent.sub_pages[page.slug] = page
-                    elif page.slug not in parent:
+                        parent.sub_pages[page.name] = page
+                    elif page.name not in parent:
                         # Only add a translation to the parent, if there is
-                        # not already a page with the same slug in parent:
-                        parent.sub_pages[page.slug] = page
+                        # not already a page with the same name in parent:
+                        parent.sub_pages[page.name] = page
                     else:
-                        logger.debug(parent.slug + " has already another "
-                                     "entry for " + page.slug)
+                        logger.debug(parent.name + " has already another "
+                                     "entry for " + page.name)
 
                 elif page.status == "hidden":
                     # Don't add hidden pages to the parent. They are still
                     # there but not in the `sub_pages` dict of parent.
                     hidden_pages.append(page)
+                elif page.status == "draft":
+                    pages.append(page)
                 else:
                     logger.warning("Unknown status '%s' for file %s, "
                                    "skipping it." %
-                                   (repr(page.status), repr(rel_path)))
+                                   (repr(page.status), repr(rel_item)))
 
-            elif os.path.isdir(os.path.join(path, item)):
+            elif os.path.isdir(abs_item):
 
                 if item in exclude:
                     continue
 
                 # Virtual page, that is used when there is not already a page
-                # with the same slug under the current `parent`.
-                page = HiPage("", source_path=os.path.join(page_dir, rel_path),
-                              slug=utils.slugify(item),
-                              parent=parent)
+                # with the same name under the current `parent`.
+                m = readers.parse_path_metadata(
+                    rel_item,
+                    settings={'FILENAME_METADATA': FILENAME_METADATA})
+
+                page = HiPage("", source_path=item,
+                              parent=parent,
+                              metadata=m,
+                              settings=self.settings)
 
                 # Because we allow to override the HiPage for a directory
                 # `foo` by providing a `foo.md` file, we check now whether the
                 # file already exists, or an empty `HiPage` should be created
                 # for this directory.
-                print(page.slug)
-                if page.slug in parent.sub_pages.keys():
+                logger.debug("is a dir -> name={0}, lang={1}, slug={2}".
+                             format(page.name, page.lang, page.slug))
+                if page.name in parent.sub_pages.keys():
                     # Instead of the virtual page use the parents's one
-                    print("don't use virtual page... " + repr(parent.sub_pages))
-                    page = parent.sub_pages[page.slug]
+                    logger.debug("    ... ignored because Parent has {0} in "
+                                 "its sub_pages: {1}".
+                                 format(repr(parent), repr(parent.sub_pages)))
+                    page = parent.sub_pages[page.name]
                 else:
                     # Add the virtual page (created above) to the parent
-                    print("adding virt. page: " + page.slug)
-                    parent.sub_pages[page.slug] = page
+                    logger.debug("    ... as a virtual page: " + page.name)
+                    parent.sub_pages[page.name] = page
 
                 # Recursively descent into the directory
-                p, h = self._scan_dir_r(path=os.path.join(page_dir, rel_path),
-                                        exclude=exclude,
-                                        parent=page)
+                ps, hs = self._scan_dir_r(base_path=base_path,
+                                          rel_path=rel_item,
+                                          exclude=exclude,
+                                          parent=page)
                 self.add_source_path(page)
                 pages.append(page)
-                pages.extend(p)
-                hidden_pages.extend(h)
+                pages.extend(ps)
+                hidden_pages.extend(hs)
 
             else:
                 raise Exception("not a dir and not a file")  # possible at all?
