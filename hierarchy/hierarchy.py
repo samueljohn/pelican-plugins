@@ -234,9 +234,11 @@ class HiPage(contents.Page):
     @property
     def breadcrumps(self):
         """Returning tuples `(url, title)` from root to this page."""
-        bc = [(self.url, self.title)]
+        bc = []  # (self.url, self.title)]
         for p in self.hierarchy:
-            bc.append((p.url, p.title))
+            if p.parent:
+                bc.append((p.url, p.title))
+        logger.warn("breadcrumps: " + str(list(bc)))
         return reversed(bc)
 
     @property
