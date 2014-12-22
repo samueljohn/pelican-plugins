@@ -34,7 +34,6 @@ from pelican import signals, contents, generators, utils, readers
 
 __version__ = (0, 1, 1)
 
-logger = logging.getLogger(__name__)
 
 # Tweak the Pelican logger to also show the `name` of the logger.
 logger = logging.getLogger("hierarchy")
@@ -439,6 +438,7 @@ class HiPagesGenerator(generators.PagesGenerator):
 
             else:
                 raise Exception("not a dir and not a file")  # possible at all?
+        logger.debug("---------------")
 
         return pages, hidden_pages
 
@@ -447,13 +447,12 @@ def remove_normal_pages(self):
     """This is a hack to keep Pelican from generating the normal Pages."""
     if self.__class__ == generators.PagesGenerator:
         def noop(self, *args, **kws):
-            logger.debug(self.__class__.__name__ +
-                         ": hierarchy plugin: Dummy `noop` called instead of "
+            logger.debug("Dummy `noop` called instead of "
                          "`get_files` to replace `Page` by `HiPage`.")
             return []
         # The easiest way, I found, was just to make `get_files` a noop.
         self.get_files = noop
-        logger.warn("hierarchy plugin: `get_files()` of "
+        logger.warn("`get_files()` of "
                     + self.__class__.__name__ +
                     " disabled in favor of `HiPagesGenerator`.")
 
