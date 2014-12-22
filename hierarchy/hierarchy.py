@@ -424,6 +424,14 @@ def add_copy_statics_generator(self):
     return CopyStaticAssetsGenerator
 
 
+def update_settings(pelican):
+    logger.info("Updating pelican settings for HIPAGE_...URL/SAVE_AS")
+    pelican.settings['HIPAGE_URL'] = HIPAGE_URL
+    pelican.settings['HIPAGE_LANG_URL'] = HIPAGE_LANG_URL
+    pelican.settings['HIPAGE_SAVE_AS'] = HIPAGE_SAVE_AS
+    pelican.settings['HIPAGE_LANG_SAVE_AS'] = HIPAGE_LANG_SAVE_AS
+
+
 def register():
     """
     The entry point for Pelican plugins.
@@ -434,3 +442,4 @@ def register():
     signals.get_generators.connect(add_hi_pages_generator)
     signals.get_generators.connect(add_copy_statics_generator)
     signals.page_generator_init.connect(remove_normal_pages)
+    signals.initialized.connect(update_settings)
