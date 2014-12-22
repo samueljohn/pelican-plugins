@@ -424,8 +424,13 @@ def add_copy_statics_generator(self):
     return CopyStaticAssetsGenerator
 
 
-# A pelican plugin has to have this function. It's the entry point.
 def register():
+    """
+    The entry point for Pelican plugins.
+
+    A pelican plugin has to have this function. We cannot directly give the
+    class but a callable, which returns the class, is needed.
+    """
     signals.get_generators.connect(add_hi_pages_generator)
     signals.get_generators.connect(add_copy_statics_generator)
     signals.page_generator_init.connect(remove_normal_pages)
