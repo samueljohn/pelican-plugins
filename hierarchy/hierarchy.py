@@ -32,8 +32,7 @@ import functools
 
 from pelican import signals, contents, generators, utils, readers
 
-__version__ = (0, 1, 1)
-
+__version__ = (0, 1, 2)
 
 # Tweak the Pelican logger to also show the `name` of the logger.
 logger = logging.getLogger("hierarchy")
@@ -278,7 +277,7 @@ class HiPagesGenerator(generators.PagesGenerator):
 
     def generate_context(self):
         """
-        Overwrites `PagesGenerator.generate_context` and builds up `HiPage`es.
+        Overwrites `PagesGenerator.generate_context` and builds up `HiPage`s.
         """
         root = HiPage("", slug='../index', name="index", title='Home',
                       parent=None, settings=self.settings)
