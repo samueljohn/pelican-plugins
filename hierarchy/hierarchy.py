@@ -28,7 +28,6 @@ SOFTWARE.
 import os
 import logging
 from collections import OrderedDict
-import functools
 
 from pelican import signals, contents, generators, utils, readers
 
@@ -48,7 +47,6 @@ STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
 FILENAME_METADATA = r'(?P<order>[0-9]*(_|-| ))?(?P<title>((?!\[(en|de)\]).)+)(\[(?P<lang>(en|de))\])?'
 HIPAGE_URL = HIPAGE_SAVE_AS = "pages/{hierarchy}.html"
 HIPAGE_LANG_URL = HIPAGE_LANG_SAVE_AS = "pages/{hierarchy}-{lang}.html"
-
 
 
 def ascii_tree(tree, print_item=repr, prefix=[], last_prefix=""):
@@ -147,11 +145,15 @@ class HiPage(contents.Page):
             logger.debug("New HiPage object created: "
                          "(name={0}, title={1}, slug={2})".
                          format(name, title, slug))
+            self.order = ""
         else:
             m = readers.parse_path_metadata(
                 source_path,
                 settings={'FILENAME_METADATA': FILENAME_METADATA})
-            self.name = utils.slugify(m['title'])
+            self.order = m['order']
+            if self.order is None:
+                self.order = ""
+            self.name = self.order + utils.slugify(m['title'])
             self.title = m['title']
             logger.debug("New HiPage object created: source_path={0}".
                          format(source_path))
@@ -166,7 +168,7 @@ class HiPage(contents.Page):
         # If title, slug or name are given as keywords, then, we overwrite
         # what the super constructor set.
         if name is not None:
-            self.name = utils.slugify(name)
+            self.name = self.order + utils.slugify(name)
             logger.debug("    name='{0}' was explicitly given.".
                          format(name))
 
