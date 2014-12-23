@@ -157,12 +157,20 @@ class HiPage(contents.Page):
             logger.debug("New HiPage object created: source_path={0}".
                          format(source_path))
 
+
         super(HiPage, self).__init__(content,
                                      metadata=metadata,
                                      settings=settings,
                                      source_path=source_path,
                                      context=context,
                                      **kws)
+
+        # This is to work around a Pelican bug that a FILENAME_METADATA regex
+        # group can be empty which results in lang being `None`.
+        if hasattr(self, 'lang'):
+            if self.lang is None:
+                self.lang = settings['DEFAULT_LANG']
+                self.in_default_lang = True
 
         # If title, slug or name are given as keywords, then, we overwrite
         # what the super constructor set.
