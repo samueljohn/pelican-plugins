@@ -134,6 +134,7 @@ class HiPage(contents.Page):
                  title=None, parent=None, **kws):
         self.parent = parent
         self.sub_pages = OrderedDict()
+        self.order = ""
 
         if source_path is None:
             assert name is not None,\
@@ -145,14 +146,12 @@ class HiPage(contents.Page):
             logger.debug("New HiPage object created: "
                          "(name={0}, title={1}, slug={2})".
                          format(name, title, slug))
-            self.order = ""
         else:
             m = readers.parse_path_metadata(
                 source_path,
                 settings={'FILENAME_METADATA': FILENAME_METADATA})
-            self.order = m['order']
-            if self.order is None:
-                self.order = ""
+            if 'order' in m and m['order'] is not None:
+                self.order = m['order']
             self.name = self.order + utils.slugify(m['title'])
             self.title = m['title']
             logger.debug("New HiPage object created: source_path={0}".
