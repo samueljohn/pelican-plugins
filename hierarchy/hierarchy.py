@@ -131,10 +131,13 @@ class HiPage(contents.Page):
 
     def __init__(self, content, metadata=None, settings=None,
                  source_path=None, context=None, slug=None, name=None,
-                 title=None, parent=None, **kws):
+                 title=None, parent=None, virtual=False, **kws):
         self.parent = parent
         self.sub_pages = OrderedDict()
         self.order = ""
+        self.virtual = virtual
+
+        logger.debug("New HiPage object created:")
 
         if source_path is None:
             assert name is not None,\
@@ -143,9 +146,6 @@ class HiPage(contents.Page):
                 "If no `source_path` given, a title is needed."
             assert slug is not None,\
                 "If no `source_path` given, a slug is needed."
-            logger.debug("New HiPage object created: "
-                         "(name={0}, title={1}, slug={2})".
-                         format(name, title, slug))
         else:
             m = readers.parse_path_metadata(
                 source_path,
@@ -154,9 +154,6 @@ class HiPage(contents.Page):
                 self.order = m['order']
             self.name = self.order + utils.slugify(m['title'])
             self.title = m['title']
-            logger.debug("New HiPage object created: source_path={0}".
-                         format(source_path))
-
 
         super(HiPage, self).__init__(content,
                                      metadata=metadata,
@@ -192,14 +189,15 @@ class HiPage(contents.Page):
             logger.debug("    title='{0}' was explicitly given.".
                          format(title))
 
+        logger.debug("    (name={0}, title={1}, slug={2}, lang={3})".
+                     format(self.name, self.title, self.slug, self.lang))
+
     @property
     def slug(self):
         if self._slug is not None:
             return self._slug
         else:
             s = [p.name for p in self.hierarchy if p.parent] + [self.name]
-            logger.debug("slug Computed: {0}.".
-                         format(">".join(s)))
             return ">".join(s)
 
     @slug.setter
@@ -246,7 +244,6 @@ class HiPage(contents.Page):
         for p in self.hierarchy:
             if p.parent:
                 bc.append((p.url, p.title))
-        logger.warn("breadcrumps: " + str(list(bc)))
         return reversed(bc)
 
     @property
@@ -365,16 +362,23 @@ class HiPagesGenerator(generators.PagesGenerator):
                 self.add_source_path(page)
 
                 if page.name in parent.sub_pages.keys():
-                    # Instead of the virtual page use the parents's one
-                    logger.debug("replace a virtual HiPage by this " +
-                                 repr(page))
-                    for sub in parent.sub_pages[page.name]:
-                        page.sub_pages[sub.name] = sub
-                        sub.parent = page
-                    pages.remove(parent.sub_pages[page.name])
-                    del parent.sub_pages[page.name]
-                    logger.debug("so now parent.sub_pages is " +
-                                 repr(parent.sub_pages))
+                    old_page = parent.sub_pages[page.name]
+                    if old_page.virtual:
+                        # Instead of the virtual page use the parents's one
+                        logger.debug("replace a virtual HiPage by this " +
+                                     repr(page))
+                        for sub in parent.sub_pages[page.name]:
+                            page.sub_pages[sub.name] = sub
+                            sub.parent = page
+                        pages.remove(parent.sub_pages[page.name])
+                        del parent.sub_pages[page.name]
+                    elif page.in_default_lang:
+                        # if this page is in_default_lang then we just replace
+                        # the old_page in the tree but not in `pages`:
+                        for sub in old_page:
+                            page.sub_pages[sub.name] = sub
+                            sub.parent = page
+                        del parent.sub_pages[page.name]
 
                 if page.status == "published":
                     pages.append(page)
@@ -389,8 +393,8 @@ class HiPagesGenerator(generators.PagesGenerator):
                         # not already a page with the same name in parent:
                         parent.sub_pages[page.name] = page
                     else:
-                        logger.debug(parent.name + " has already another "
-                                     "entry for " + page.name)
+                        logger.warn(parent.name + " has already another "
+                                    "entry for " + page.name)
 
                 elif page.status == "hidden":
                     # Don't add hidden pages to the parent. They are still
@@ -414,7 +418,8 @@ class HiPagesGenerator(generators.PagesGenerator):
                     rel_item,
                     settings={'FILENAME_METADATA': FILENAME_METADATA})
 
-                page = HiPage("", source_path=item,
+                page = HiPage("", virtual=True,
+                              source_path=item,
                               parent=parent,
                               metadata=m,
                               settings=self.settings)
@@ -436,13 +441,14 @@ class HiPagesGenerator(generators.PagesGenerator):
                     logger.debug("    ... as a virtual page: " + page.name)
                     parent.sub_pages[page.name] = page
 
+                self.add_source_path(page)
+                pages.append(page)
+
                 # Recursively descent into the directory
                 ps, hs = self._scan_dir_r(base_path=base_path,
                                           rel_path=rel_item,
                                           exclude=exclude,
                                           parent=page)
-                self.add_source_path(page)
-                pages.append(page)
                 pages.extend(ps)
                 hidden_pages.extend(hs)
 
