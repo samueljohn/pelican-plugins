@@ -303,6 +303,17 @@ class HiPagesGenerator(generators.PagesGenerator):
             utils.process_translations(hidden_pages))
         self.PAGES_TREE = root
 
+        # Fix (hack): Go through all translations and add the missing sub-pages
+        for page in self.translations:
+            lang = page.lang
+            # find corresponding page
+            orig_page = None
+            for p in self.pages:
+                if p.name == page.name:
+                    orig_page = p
+                    break
+            page.sub_pages.update(orig_page.sub_pages)
+
         self._update_context(['pages', 'hidden_pages', 'PAGES_TREE'])
         # self.context['PAGES'] = self.pages
         # self.context['PAGES_TREE'] = root
