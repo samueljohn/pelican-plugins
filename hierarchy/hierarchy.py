@@ -44,7 +44,7 @@ STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
                      'zip', 'tar', 'gz',
                      'js')
 
-FILENAME_METADATA = r'(?P<order>[0-9]*(_|-| ))?(?P<title>((?!\[(en|de)\]).)+)(\[(?P<lang>(en|de))\])?'
+FILENAME_METADATA = r'(?P<order>[0-9]*(_|-| ))?(?P<title>((?!-(en|de)).)+)(-(?P<lang>(en|de)))?'
 HIPAGE_URL = HIPAGE_SAVE_AS = "pages/{hierarchy}.html"
 HIPAGE_LANG_URL = HIPAGE_LANG_SAVE_AS = "pages/{hierarchy}-{lang}.html"
 
