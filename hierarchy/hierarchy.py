@@ -45,8 +45,9 @@ STATIC_EXTENSIONS = ('png', 'jpeg', 'jpg', 'gif', 'tif', 'tiff',
                      'js')
 
 FILENAME_METADATA = r'(?P<order>[0-9]*(_|-| ))?(?P<title>((?!-(en|de)).)+)(-(?P<lang>(en|de)))?'
-HIPAGE_URL = HIPAGE_SAVE_AS = "pages/{hierarchy}.html"
-HIPAGE_LANG_URL = HIPAGE_LANG_SAVE_AS = "pages/{hierarchy}-{lang}.html"
+HIPAGE_URL = HIPAGE_SAVE_AS = "{hierarchy}.html"
+HIPAGE_LANG_URL = HIPAGE_LANG_SAVE_AS = "{hierarchy}-{lang}.html"
+
 
 
 def ascii_tree(tree, print_item=repr, prefix=[], last_prefix=""):
@@ -92,8 +93,13 @@ class CopyStaticAssetsGenerator(generators.Generator):
                 self.settings[kind + '_PATHS'],
                 exclude=self.settings[kind + '_EXCLUDES'],
                 extensions=extensions):
+            # hack, remove "pages/" and put the HiPages directly
+            # in the root, instead
+            t = f
+            if f.startswith("pages/"):
+                t = f.split("pages/")[1]
             utils.copy(os.path.join(self.path, f),
-                       os.path.join(self.output_path, f))
+                       os.path.join(self.output_path, t))
 
 # todo: Add the filenames of the assests to the url list in context
 #       so that _update_content can fix relative URLs
@@ -305,7 +311,6 @@ class HiPagesGenerator(generators.PagesGenerator):
 
         # Fix (hack): Go through all translations and add the missing sub-pages
         for page in self.translations:
-            lang = page.lang
             # find corresponding page
             orig_page = None
             for p in self.pages:
