@@ -85,15 +85,15 @@ class CopyStaticAssetsGenerator(generators.Generator):
         self._generate_output_for(writer, 'PAGE')
 
     def _generate_output_for(self, writer, kind):
-        extensions = STATIC_EXTENSIONS
-        if STATIC_EXTENSIONS in self.settings:
+        extensions = list(STATIC_EXTENSIONS)
+        extensions.extend([ext.upper() for ext in STATIC_EXTENSIONS])
+        if 'STATIC_EXTENSIONS' in self.settings:
             extensions.extend(self.settings['STATIC_EXTENSIONS'])
-            extensions.extend([ext.upper() for ext in STATIC_EXTENSIONS])
 
         for f in self.get_files(
                 self.settings[kind + '_PATHS'],
                 exclude=self.settings[kind + '_EXCLUDES'],
-                extensions=extensions):
+                extensions=tuple(extensions)):
             # hack, remove "pages/" and put the HiPages directly
             # in the root, instead
             t = f
