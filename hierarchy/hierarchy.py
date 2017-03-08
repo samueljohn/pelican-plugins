@@ -88,7 +88,7 @@ class CopyStaticAssetsGenerator(generators.Generator):
         extensions = STATIC_EXTENSIONS
         if STATIC_EXTENSIONS in self.settings:
             extensions.extend(self.settings['STATIC_EXTENSIONS'])
-            extensions.extend([ext.upper() for ext in STATIC_EXTENSIONS]])
+            extensions.extend([ext.upper() for ext in STATIC_EXTENSIONS])
 
         for f in self.get_files(
                 self.settings[kind + '_PATHS'],
