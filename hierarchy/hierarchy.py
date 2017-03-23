@@ -31,7 +31,7 @@ from collections import OrderedDict
 
 from pelican import signals, contents, generators, utils, readers
 
-__version__ = (0, 1, 2)
+__version__ = (0, 1, 3)
 
 # Tweak the Pelican logger to also show the `name` of the logger.
 logger = logging.getLogger("hierarchy")
@@ -100,7 +100,7 @@ class CopyStaticAssetsGenerator(generators.Generator):
             if f.startswith("pages/"):
                 t = f.split("pages/")[1]
             utils.copy(os.path.join(self.path, f),
-                       os.path.join(self.output_path, t))
+                       os.path.join(self.output_path, t.lower()))
 
 # todo: Add the filenames of the assests to the url list in context
 #       so that _update_content can fix relative URLs
