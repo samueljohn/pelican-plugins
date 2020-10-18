@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 """
 hierarchy -- provides hierarchical organization of pages.
 
-Copyright © 2014 Samuel John (www.SamuelJohn.de)
+Copyright © 2014-2020 Samuel John (www.SamuelJohn.de)
 
 The MIT License (MIT)
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,7 +29,7 @@ from collections import OrderedDict
 
 from pelican import signals, contents, generators, utils, readers
 
-__version__ = (0, 1, 3)
+__version__ = (0, 1, 4)
 
 # Tweak the Pelican logger to also show the `name` of the logger.
 logger = logging.getLogger("hierarchy")
