@@ -371,7 +371,7 @@ class HiPagesGenerator(generators.PagesGenerator):
                                    .format(rel_item, e))
                     continue
 
-                if not contents.is_valid_content(page, rel_item):
+                if not page.is_valid():
                     logger.warn('invalid content for ' + rel_item)
                     continue
 
